@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using OllamaTest.Services;
+using System.Text.Json;
 
 namespace OllamaTest.Controllers
 {
@@ -17,8 +18,8 @@ namespace OllamaTest.Controllers
             _textEmbedder = textEmbedder;
         }
 
-        [HttpGet("train")]
-        public async Task<ActionResult<string>> Train(string fact = "George is a Senior software engineer at BET Software.")
+        [HttpPost("train/with-text")]
+        public async Task<ActionResult<string>> Train([FromBody] string fact = "George is a Senior software engineer at BET Software.")
         {
             try
             {
@@ -32,6 +33,44 @@ namespace OllamaTest.Controllers
                     text = fact
                 });
                 return Ok("success");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Error: {ex.Message}");
+            }
+        }
+
+        [HttpPost("train/with-payload")]
+        public async Task<ActionResult<string>> TrainWithPayload([FromBody] object payload)
+        {
+            try
+            {
+                /*  Payloads with meta-data Example
+                 * 
+                    {
+                        "text": "Rauvoun made 15 sales totaling KES 6,200...",
+                        "date": "2025-08-03",
+                        "staff": "Rauvoun",
+                        "type": "staff-performance"
+                    }
+                 */
+
+                if (payload is not JsonElement jsonElement) throw new ArgumentException("Invalid payload format.");
+                if (jsonElement.ValueKind != JsonValueKind.Object) throw new ArgumentException("Payload must be a JSON object.");
+                //proceed
+                if (jsonElement.TryGetProperty("text", out var textElement))
+                {
+                    string? text = textElement.GetString() ?? throw new Exception("[text] property can not be NULL");
+                    // ensure collection exists
+                    await _vectorDbContext.CreateCollectionIfNotExistsAsync(COLLECTION_NAME, 384);
+                    // local text embedding
+                    float[] rawVector = await _textEmbedder.EmbedAsync(text);
+                    // save vector
+                    await _vectorDbContext.AddPointsAsync(COLLECTION_NAME, Guid.NewGuid().ToString(), rawVector, payload);
+                    return Ok("success");
+                }
+                else
+                    return BadRequest("[text] property was not found!");
             }
             catch (Exception ex)
             {

@@ -1,29 +1,21 @@
-﻿using System.Text;
-using System.Text.Json;
+﻿using System.Text.Json;
 namespace OllamaTest.Services.Implementations
 {
     public class QdrantDbContext : IVectorDbContext
     {
         private readonly HttpClient _httpClient;
-        private readonly string _baseUrl;
 
-        public QdrantDbContext(HttpClient httpClient, string baseUrl = "http://localhost:6333")
+        public QdrantDbContext(HttpClient httpClient)
         {
             _httpClient = httpClient;
-            _baseUrl = baseUrl.TrimEnd('/');
         }
 
-        public async Task<bool> CreateCollectionIfNotExistsAsync(string collectionName, int vectorSize, string distance = "Cosine")
+        public async Task CreateCollectionIfNotExistsAsync(string collectionName, int vectorSize, string distance = "Cosine")
         {
-            string collectionUrl = $"{_baseUrl}/collections/{collectionName}";
-
-            HttpResponseMessage checkResponse = await _httpClient.GetAsync(collectionUrl);
+            HttpResponseMessage checkResponse = await _httpClient.GetAsync($"collections/{collectionName}");
             if (checkResponse.IsSuccessStatusCode)
             {
-                // Debug
-                Console.WriteLine(await checkResponse.Content.ReadAsStringAsync());
-                // Already exists
-                return false;
+                return;
             }
 
             var request = new
@@ -35,14 +27,13 @@ namespace OllamaTest.Services.Implementations
                 }
             };
 
-            HttpResponseMessage response = await _httpClient.PutAsJsonAsync(collectionUrl, request);
-            response.EnsureSuccessStatusCode();
-            // Debug
-            Console.WriteLine(await response.Content.ReadAsStringAsync());
-            return true;
+            HttpResponseMessage response = await _httpClient.PutAsJsonAsync($"collections/{collectionName}", request);
+            if (response.IsSuccessStatusCode)
+                return;
+            throw new HttpRequestException(await response.Content.ReadAsStringAsync());
         }
 
-        public async Task<bool> AddPointsAsync(string collectionName, string id, float[] vector, object payload)
+        public async Task AddPointsAsync(string collectionName, string id, float[] vector, object payload)
         {
             var request = new
             {
@@ -57,11 +48,10 @@ namespace OllamaTest.Services.Implementations
             }
             };
 
-            HttpResponseMessage response = await _httpClient.PostAsync($"{_baseUrl}/collections/{collectionName}/points?wait=true", new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json"));
-            response.EnsureSuccessStatusCode();
-            // debug
-            Console.WriteLine(await response.Content.ReadAsStringAsync());
-            return true;
+            HttpResponseMessage response = await _httpClient.PutAsJsonAsync($"collections/{collectionName}/points?wait=true", request);
+            if (response.IsSuccessStatusCode)
+                return;
+            throw new HttpRequestException(await response.Content.ReadAsStringAsync());
         }
 
         public async Task<string> PointsSearchAsync(string collectionName, float[] vector, int limit = 3)
@@ -73,9 +63,12 @@ namespace OllamaTest.Services.Implementations
                 with_payload = true
             };
 
-            HttpResponseMessage response = await _httpClient.PostAsync($"{_baseUrl}/collections/{collectionName}/points/search", new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json"));
-            response.EnsureSuccessStatusCode();
+            HttpResponseMessage response = await _httpClient.PostAsJsonAsync($"collections/{collectionName}/points/search", request);
             string rawResponse = await response.Content.ReadAsStringAsync();
+            if (!response.IsSuccessStatusCode)
+                throw new HttpRequestException(rawResponse);
+            //proceed
+            response.EnsureSuccessStatusCode();
             //format to string
             string? formattedResponse = ExtractTextFromTopHit(rawResponse);
             //return response

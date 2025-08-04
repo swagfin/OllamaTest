@@ -3,7 +3,6 @@
     public class MistralModelQueryService : ILLModelQueryService
     {
         private readonly HttpClient _httpClient;
-        private const string MODEL_ENDPOINT = "http://localhost:11434/api/generate";
 
         public MistralModelQueryService(HttpClient httpClient)
         {
@@ -34,7 +33,7 @@ USER QUESTION:
 
 ASSISTANT:";
 
-            var response = await _httpClient.PostAsJsonAsync(MODEL_ENDPOINT, new
+            var response = await _httpClient.PostAsJsonAsync("api/generate", new
             {
                 model = "Mistral:7b",
                 prompt = systemPrompt,

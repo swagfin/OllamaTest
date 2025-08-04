@@ -27,11 +27,11 @@ namespace OllamaTest.Controllers
                 // local text embedding
                 float[] rawVector = await _textEmbedder.EmbedAsync(fact);
                 // save vector
-                bool success = await _vectorDbContext.AddPointsAsync(COLLECTION_NAME, Guid.NewGuid().ToString(), rawVector, new
+                await _vectorDbContext.AddPointsAsync(COLLECTION_NAME, Guid.NewGuid().ToString(), rawVector, new
                 {
                     text = fact
                 });
-                return Ok(success);
+                return Ok("success");
             }
             catch (Exception ex)
             {

@@ -59,7 +59,7 @@ namespace OllamaTest.Services.Implementations
             var request = new
             {
                 vector,
-                top = limit,
+                limit = limit,
                 with_payload = true
             };
 
@@ -70,12 +70,12 @@ namespace OllamaTest.Services.Implementations
             //proceed
             response.EnsureSuccessStatusCode();
             //format to string
-            string? formattedResponse = ExtractTextFromTopHit(rawResponse);
+            string? formattedResponse = ExtractTextFromTopHits(rawResponse, limit);
             //return response
             return formattedResponse ?? string.Empty;
         }
 
-        private static string? ExtractTextFromTopHit(string qdrantResponseJson)
+        private static string ExtractTextFromTopHits(string qdrantResponseJson, int limit)
         {
             using JsonDocument doc = JsonDocument.Parse(qdrantResponseJson);
             JsonElement hits = doc.RootElement.GetProperty("result");
@@ -83,15 +83,28 @@ namespace OllamaTest.Services.Implementations
             if (hits.GetArrayLength() == 0)
                 return "No relevant information found.";
 
-            JsonElement firstHit = hits[0];
+            List<string> texts = [];
 
-            if (firstHit.TryGetProperty("payload", out JsonElement payload) &&
-                payload.TryGetProperty("text", out JsonElement textElement))
+            int count = Math.Min(limit, hits.GetArrayLength());
+            for (int i = 0; i < count; i++)
             {
-                return textElement.GetString();
+                JsonElement hit = hits[i];
+
+                if (hit.TryGetProperty("payload", out JsonElement payload) && payload.TryGetProperty("text", out JsonElement textElement))
+                {
+                    string? text = textElement.GetString();
+                    if (!string.IsNullOrEmpty(text))
+                    {
+                        texts.Add(text);
+                    }
+                }
             }
 
-            return "Relevant data found, but no text content available.";
+            if (texts.Count == 0)
+                return "Relevant data found, but no text content available.";
+
+            // Join all extracted texts with a separator (customize if needed)
+            return string.Join(Environment.NewLine, texts);
         }
     }
 }

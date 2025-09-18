@@ -33,7 +33,7 @@ namespace OllamaTest.Controllers
                 embeddingTimer.Stop();
                 // Qdrant search request
                 Stopwatch vectorTimer = Stopwatch.StartNew();
-                string llmContext = await _vectorDbContext.PointsSearchAsync(COLLECTION_NAME, questionEmbedding, 3);
+                string llmContext = await _vectorDbContext.PointsSearchAsync(COLLECTION_NAME, vector: questionEmbedding, limit: 3);
                 vectorTimer.Stop();
                 //prompt
                 Stopwatch llmTimer = Stopwatch.StartNew();

@@ -79,7 +79,7 @@ namespace OllamaTest.Controllers
         }
 
         [HttpGet("query")]
-        public async Task<ActionResult<string>> GetAskRag(string question = "Who is George?", int limit = 1)
+        public async Task<ActionResult<string>> GetAskRag(string question = "Who is George?", int limit = 3)
         {
             // local text embedding
             float[] questionEmbedding = await _textEmbedder.EmbedAsync(question);
